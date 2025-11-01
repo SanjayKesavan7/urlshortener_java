@@ -42,15 +42,19 @@ public class ShortUrlService {
 
     @Transactional
     public ShortUrlDto createShortUrl(CreateShortUrlCmd cmd) {
+        String verUrl = cmd.originalUrl();
+        if(!(verUrl.substring(0,7).equals("http://"))){
+            verUrl = "http://"+cmd.originalUrl();
+        }
         if(properties.validateOriginalUrl()) {
-            boolean urlExists = UrlExistenceValidator.isUrlExists(cmd.originalUrl());
+            boolean urlExists = UrlExistenceValidator.isUrlExists(verUrl);
             if(!urlExists) {
                 throw new RuntimeException("Invalid URL "+cmd.originalUrl());
             }
         }
         var shortKey = generateUniqueShortKey();
         var shortUrl = new ShortUrl();
-        shortUrl.setOriginalUrl(cmd.originalUrl());
+        shortUrl.setOriginalUrl(verUrl);
         shortUrl.setShortKey(shortKey);
         shortUrl.setCreatedBy(null);
         shortUrl.setIsPrivate(false);
