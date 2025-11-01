@@ -5,6 +5,7 @@ import com.sanjayRoshan.urlshortener.domain.entities.ShortUrl;
 import com.sanjayRoshan.urlshortener.domain.model.CreateShortUrlCmd;
 import com.sanjayRoshan.urlshortener.domain.model.ShortUrlDto;
 import com.sanjayRoshan.urlshortener.domain.repository.ShortUrlRepository;
+import com.sanjayRoshan.urlshortener.domain.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,14 +27,16 @@ public class ShortUrlService {
     private final ShortUrlRepository shortUrlRepository;
     private final EntityMapper entityMapper;
     private final ApplicationProperties properties;
+    private final UserRepository userRepository;
 
-    public ShortUrlService(ShortUrlRepository shortUrlRepository,
-                           EntityMapper entityMapper,
-                           ApplicationProperties properties) {
-        this.shortUrlRepository = shortUrlRepository;
+    public ShortUrlService(EntityMapper entityMapper, ShortUrlRepository shortUrlRepository, ApplicationProperties properties, UserRepository userRepository) {
         this.entityMapper = entityMapper;
+        this.shortUrlRepository = shortUrlRepository;
         this.properties = properties;
+        this.userRepository = userRepository;
     }
+
+
 
     public List<ShortUrlDto> findAllPublicShortUrls() {
         return shortUrlRepository.findPublicShortUrls()
@@ -56,8 +59,17 @@ public class ShortUrlService {
         var shortUrl = new ShortUrl();
         shortUrl.setOriginalUrl(verUrl);
         shortUrl.setShortKey(shortKey);
-        shortUrl.setCreatedBy(null);
-        shortUrl.setIsPrivate(false);
+        if(cmd.userId()==null){
+            shortUrl.setCreatedBy(null);
+            shortUrl.setIsPrivate(false);
+            shortUrl.setExpiresAt(Instant.now().plus(properties.defaultExpiryInDays(), DAYS));
+        }
+        else {
+            shortUrl.setCreatedBy(userRepository.findById(cmd.userId()).orElseThrow());
+            shortUrl.setIsPrivate(cmd.isPrivate() == null?false:cmd.isPrivate());
+            shortUrl.setExpiresAt(cmd.expirationInDays()!=null?Instant.now().plus(cmd.expirationInDays(),DAYS):null);
+        }
+
         shortUrl.setClickCount(0L);
         shortUrl.setExpiresAt(Instant.now().plus(properties.defaultExpiryInDays(), DAYS));
         shortUrl.setCreatedAt(Instant.now());
