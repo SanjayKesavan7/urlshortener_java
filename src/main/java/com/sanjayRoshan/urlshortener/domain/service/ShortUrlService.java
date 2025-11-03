@@ -3,9 +3,14 @@ package com.sanjayRoshan.urlshortener.domain.service;
 import com.sanjayRoshan.urlshortener.ApplicationProperties;
 import com.sanjayRoshan.urlshortener.domain.entities.ShortUrl;
 import com.sanjayRoshan.urlshortener.domain.model.CreateShortUrlCmd;
+import com.sanjayRoshan.urlshortener.domain.model.PagedResult;
 import com.sanjayRoshan.urlshortener.domain.model.ShortUrlDto;
 import com.sanjayRoshan.urlshortener.domain.repository.ShortUrlRepository;
 import com.sanjayRoshan.urlshortener.domain.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,11 +43,14 @@ public class ShortUrlService {
 
 
 
-    public List<ShortUrlDto> findAllPublicShortUrls() {
-        return shortUrlRepository.findPublicShortUrls()
-                .stream().map(entityMapper::toShortUrlDto).toList();
+    public PagedResult<ShortUrlDto> findAllPublicShortUrls(int pageNo, int pageSize) {
+        pageNo = pageNo > 1? pageNo - 1 : 0;
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ShortUrlDto> shortUrlDtoPage = shortUrlRepository.findPublicShortUrls(pageable)
+                .map(entityMapper::toShortUrlDto);
+        return PagedResult.from(shortUrlDtoPage);
     }
-
+    // validates and generates the short url for the original entered url
     @Transactional
     public ShortUrlDto createShortUrl(CreateShortUrlCmd cmd) {
         String verUrl = cmd.originalUrl();
@@ -77,6 +85,7 @@ public class ShortUrlService {
         return entityMapper.toShortUrlDto(shortUrl);
     }
 
+    //helper function to generate a unique short key of 6 characters
     private String generateUniqueShortKey() {
         String shortKey;
         do {
@@ -89,6 +98,7 @@ public class ShortUrlService {
     private static final int SHORT_KEY_LENGTH = 6;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    //generate a random key which the unique key generator uses
     public static String generateRandomShortKey() {
         StringBuilder sb = new StringBuilder(SHORT_KEY_LENGTH);
         for (int i = 0; i < SHORT_KEY_LENGTH; i++) {
@@ -96,6 +106,8 @@ public class ShortUrlService {
         }
         return sb.toString();
     }
+
+    //finds the short key from the database and returns the short url dto
     @Transactional
     public Optional<ShortUrlDto> accessShortUrl(String shortKey){
         Optional<ShortUrl> optionalShortUrl = shortUrlRepository.findByShortKey(shortKey);

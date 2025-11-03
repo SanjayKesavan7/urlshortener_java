@@ -4,6 +4,7 @@ import com.sanjayRoshan.urlshortener.ApplicationProperties;
 import com.sanjayRoshan.urlshortener.domain.entities.ShortUrl;
 import com.sanjayRoshan.urlshortener.domain.entities.User;
 import com.sanjayRoshan.urlshortener.domain.model.CreateShortUrlCmd;
+import com.sanjayRoshan.urlshortener.domain.model.PagedResult;
 import com.sanjayRoshan.urlshortener.domain.model.ShortUrlDto;
 import com.sanjayRoshan.urlshortener.domain.model.exceptions.ShortUrlNotFoundException;
 import com.sanjayRoshan.urlshortener.domain.repository.ShortUrlRepository;
@@ -13,10 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
@@ -34,30 +32,42 @@ public class HomeController {
         this.securityUtils=securityUtils;
     }
 
+    //loads the default landing page
     @GetMapping("/")
-    public String home(Model model) {
-        List<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls();
-        model.addAttribute("shortUrls", shortUrls);
-        model.addAttribute("baseUrl", properties.baseUrl());
-        model.addAttribute("createShortUrlForm", new CreateShortUrlForm("",false,null));
+    public String home(
+            @RequestParam(defaultValue = "1") Integer page,
+            Model model) {
+        this.addShortUrlsDataToModel(model, page);
+        model.addAttribute("createShortUrlForm",
+                new CreateShortUrlForm("", false, null));
         return "index";
     }
 
+    private void addShortUrlsDataToModel(Model model, int pageNo) {
+        PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(pageNo, properties.pageSize());
+        model.addAttribute("shortUrls", shortUrls);
+        model.addAttribute("baseUrl", properties.baseUrl());
+    }
+
+    //to create shorturls from the form data and calls short url service if errors redirects with errors or does a post-redirect-get request
     @PostMapping("/short-urls")
     String createShortUrl(@ModelAttribute("createShortUrlForm") @Valid CreateShortUrlForm form,
                           BindingResult bindingResult,
                           RedirectAttributes redirectAttributes,
                           Model model) {
         if(bindingResult.hasErrors()) {
-            List<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls();
-            model.addAttribute("shortUrls", shortUrls);
-            model.addAttribute("baseUrl", properties.baseUrl());
+            this.addShortUrlsDataToModel(model, 1);
             return "index";
         }
 
         try {
-            Long userId  = securityUtils.getCurrentUserId();
-            CreateShortUrlCmd cmd = new CreateShortUrlCmd(form.originalUrl(),form.isPrivate(),form.expirationInDays(),userId);
+            Long userId = securityUtils.getCurrentUserId();
+            CreateShortUrlCmd cmd = new CreateShortUrlCmd(
+                    form.originalUrl(),
+                    form.isPrivate(),
+                    form.expirationInDays(),
+                    userId
+            );
             var shortUrlDto = shortUrlService.createShortUrl(cmd);
             redirectAttributes.addFlashAttribute("successMessage", "Short URL created successfully "+
                     properties.baseUrl()+"/s/"+shortUrlDto.shortKey());
@@ -67,6 +77,7 @@ public class HomeController {
         }
         return "redirect:/";
     }
+        //gets the short key and redirects to the original url
         @GetMapping("/s/{shortKey}")
         String redirectToOriginalUrl(@PathVariable String shortKey) throws ShortUrlNotFoundException{
             Optional<ShortUrlDto> shortUrlDtoOptional = shortUrlService.accessShortUrl(shortKey);
