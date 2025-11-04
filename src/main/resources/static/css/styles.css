@@ -11,6 +11,13 @@ body {
     min-height: 100vh;
 }
 
+.navbar-logo {
+    width: 30px;  /* You can adjust the size */
+    height: 30px;
+    margin-right: 8px; /* Adds space between the logo and text */
+    vertical-align: middle; /* Helps align the image with the text */
+}
+
 .navbar-brand {
     font-weight: bold;
     font-size: 1.5rem;

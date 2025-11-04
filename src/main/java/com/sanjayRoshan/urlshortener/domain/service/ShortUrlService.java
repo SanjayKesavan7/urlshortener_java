@@ -77,9 +77,9 @@ public class ShortUrlService {
     // validates and generates the short url for the original entered url
     @Transactional
     public ShortUrlDto createShortUrl(CreateShortUrlCmd cmd) {
-        String verUrl = cmd.originalUrl();
-        if(!(verUrl.substring(0,7).equals("http://"))){
-            verUrl = "http://"+cmd.originalUrl();
+        String verUrl = cmd.originalUrl().trim();
+        if (!verUrl.startsWith("http://") && !verUrl.startsWith("https://")) {
+            verUrl = "http://" + verUrl;
         }
         if(properties.validateOriginalUrl()) {
             boolean urlExists = UrlExistenceValidator.isUrlExists(verUrl);
